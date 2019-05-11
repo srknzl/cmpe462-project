@@ -1,0 +1,5 @@
+Project Proposal: Multiclass classification using the high-level deep neural network API Keras. 
+
+Short Summary: In our project for CmpE 462, Keras will be used to train a deep neural network in order to correctly classify animal photos using softmax activation function.
+
+Team Members : Serkan Özel, İsmail Levent Baş
