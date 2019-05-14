@@ -1,14 +1,14 @@
 import keras
 import cv2
 import subprocess 
+import os 
 
-animal_folder_list_file = open("animal_database/animal_folders.txt","r")
-animal_folders_list = animal_folder_list_file.readlines()
+animal_folders_list = ['bear', 'cougar', 'cow', 'coyote', 'deer', 'elephant', 'giraffe', 'goat', 'gorilla', 'horse', 'kangaroo', 'leopard', 'lion', 'panda', 'penquin', 'sheep', 'skunk', 'tiger', 'zebra']
+
 animal_images = {} # keys: animal names, values: array of images 
 
-for x in range(len(animal_folders_list)):  # remove trailing whitespaces after animal names
-    animal_folders_list[x] = animal_folders_list[x].strip()
-    animal_images[animal_folders_list[x]] = []
+for animal_name in animal_folders_list:  # remove trailing whitespaces after animal names
+    animal_images[animal_name] = []
 
 for animal_folder_name in animal_folders_list: # find the file names in the folders and read images, store them in animal_images object
     ls_output = subprocess.check_output(["ls","animal_database/"+ animal_folder_name +"/original"])
@@ -23,21 +23,12 @@ print("------------DATASET SUMMARY-------------")
 for animal in animal_images: # print dataset summary
     print(animal+" : "+str(len(animal_images[animal])))
 
-
 for animal in animal_images: # resize images as (300,300,3)
     for x in range(len(animal_images[animal])):
         animal_images[animal][x] = cv2.resize(animal_images[animal][x],(300,300))
 
-
-# model = keras.models.Sequential()
-# model.add(keras.layers.Dense(units=64, activation='relu', input_dim=100))
-# model.add(keras.layers.Dense(units=64, activation='relu', input_dim=100))
-# model.add(keras.layers.Dense(units=10, activation='softmax'))
-# model.compile(loss=keras.losses.categorical_crossentropy,
-#               optimizer=keras.optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True),
-#               metrics=['accuracy'])
-# model.fit(x_train, y_train, epochs=5, batch_size=32)
-# loss_and_metrics = model.evaluate(x_test, y_test, batch_size=128)
-
-# classes = model.predict(x_test, batch_size=128)
-
+batch_size = 32
+num_classes = 19
+epochs = 100
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+model_name = 'cmpe462_kth_animals.h5'
