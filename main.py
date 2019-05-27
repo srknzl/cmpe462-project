@@ -179,6 +179,7 @@ model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Conv2D(16, (3,3)))
 model.add(BatchNormalization())
 model.add(Activation("relu"))
+model.add(Dropout(0.5))
 
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -201,3 +202,4 @@ model.save_weights('my_model_weights.h5')
 
 score = model.evaluate(test_set_as_array, test_labels_as_array)
 print(score)
+print(model.metrics_names)
