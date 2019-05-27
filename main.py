@@ -1,4 +1,4 @@
-from keras.layers import Dense, Dropout, Activation, Conv2D, MaxPooling2D, Flatten
+from keras.layers import Dense, Dropout, Activation, Conv2D, MaxPooling2D, Flatten, BatchNormalization
 from keras.models import Sequential
 from keras.utils import to_categorical
 from keras.optimizers import SGD
@@ -7,6 +7,17 @@ import cv2
 import subprocess 
 import os 
 import numpy as np
+
+# https://stackoverflow.com/questions/4601373/better-way-to-shuffle-two-numpy-arrays-in-unison
+def shuffle_in_unison(a, b):
+    assert len(a) == len(b)
+    shuffled_a = np.empty(a.shape, dtype=a.dtype)
+    shuffled_b = np.empty(b.shape, dtype=b.dtype)
+    permutation = np.random.permutation(len(a))
+    for old_index, new_index in enumerate(permutation):
+        shuffled_a[new_index] = a[old_index]
+        shuffled_b[new_index] = b[old_index]
+    return shuffled_a, shuffled_b
 
 animal_folders_list = [
     'bear',
@@ -84,7 +95,7 @@ for animal_folder_name in animal_folders_list: # find the file names in the fold
         if files[x]=='':
             del files[x]
     for file in files: # read and store in animal_images
-        animal_images[animal_folder_name].append(cv2.imread("animal_database/"+ animal_folder_name + "/original/" + file))
+        animal_images[animal_folder_name].append(cv2.imread("animal_database/"+ animal_folder_name + "/original/" + file)/255.)
 
 print("------------DATASET SUMMARY-------------")
 for animal in animal_images: # print dataset summary
@@ -148,33 +159,45 @@ test_labels_as_array  = np.array(test_labels_as_array)
 
 # Convert to one hot 
 
-training_labels_as_array = to_categorical(training_labels_as_array,19)
-validation_labels_as_array = to_categorical(validation_labels_as_array,19)
-test_labels_as_array = to_categorical(test_labels_as_array,19)
+training_labels_as_array = to_categorical(training_labels_as_array,19,"int32")
+validation_labels_as_array = to_categorical(validation_labels_as_array,19,"int32")
+test_labels_as_array = to_categorical(test_labels_as_array,19,"int32")
 
 model = Sequential()
-model.add(Conv2D(64, (6,6) , input_shape=(300,300,3),activation="relu"))
-model.add(MaxPooling2D(pool_size=(4, 4)))
+model.add(Conv2D(32, (3,3) , input_shape=(300,300,3)))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
 
-model.add(Conv2D(64, (6,6) , input_shape=(300,300,3),activation="relu"))
-model.add(MaxPooling2D(pool_size=(4, 4)))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 
-model.add(Conv2D(128, (6,6) , input_shape=(300,300,3),activation="relu"))
-model.add(MaxPooling2D(pool_size=(4, 4)))
+model.add(Conv2D(16, (3,3)))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
+
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
+model.add(Conv2D(16, (3,3)))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
+
+model.add(MaxPooling2D(pool_size=(2, 2)))
+
 model.add(Flatten())
 
-model.add(Dense(128,activation="relu"))
-model.add(Dropout(0.5))
-
 model.add(Dense(19, activation='softmax'))
-sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+sgd = SGD(lr=0.01)
 
 model.compile(optimizer=sgd,
               loss='categorical_crossentropy',
               metrics=['accuracy'])
+# Shuffle the data.
+shuffle_in_unison(training_set_as_array,training_labels_as_array)
+shuffle_in_unison(test_set_as_array,test_labels_as_array)
+shuffle_in_unison(validation_set_as_array,validation_labels_as_array)
 
 
-
-model.fit(training_set_as_array,training_labels_as_array,epochs=epochs,validation_data=(validation_set_as_array,validation_labels_as_array))
+model.fit(training_set_as_array,training_labels_as_array,epochs=epochs,batch_size=32,validation_data=(validation_set_as_array,validation_labels_as_array))
+model.save_weights('my_model_weights.h5')
 
 score = model.evaluate(test_set_as_array, test_labels_as_array)
+print(score)
