@@ -7,17 +7,12 @@ import cv2
 import subprocess 
 import os 
 import numpy as np
+import matplotlib.pyplot as plt
 
-# https://stackoverflow.com/questions/4601373/better-way-to-shuffle-two-numpy-arrays-in-unison
-def shuffle_in_unison(a, b):
-    assert len(a) == len(b)
-    shuffled_a = np.empty(a.shape, dtype=a.dtype)
-    shuffled_b = np.empty(b.shape, dtype=b.dtype)
-    permutation = np.random.permutation(len(a))
-    for old_index, new_index in enumerate(permutation):
-        shuffled_a[new_index] = a[old_index]
-        shuffled_b[new_index] = b[old_index]
-    return shuffled_a, shuffled_b
+
+BATCH_SIZE = 32
+EPOCHS = 5
+
 
 animal_folders_list = [
     'bear',
@@ -105,11 +100,9 @@ for animal in animal_images: # preprocessing: resize images as (300,300,3)
     for x in range(len(animal_images[animal])):
         animal_images[animal][x] = cv2.resize(animal_images[animal][x],(300,300))
 
-batch_size = 32
-num_classes = 19
-epochs = 11
-#save_dir = os.path.join(os.getcwd(), 'saved_models')
-#model_name = 'cmpe462_kth_animals.h5'
+
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+model_name = 'cmpe462_kth_animals.h5'
 
 training_set = {}
 validation_set = {}
@@ -179,7 +172,7 @@ model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Conv2D(16, (3,3)))
 model.add(BatchNormalization())
 model.add(Activation("relu"))
-model.add(Dropout(0.5))
+model.add(Dropout(0.1))
 
 model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -190,16 +183,38 @@ sgd = SGD(lr=0.01)
 
 model.compile(optimizer=sgd,
               loss='categorical_crossentropy',
-              metrics=['accuracy'])
-# Shuffle the data.
-shuffle_in_unison(training_set_as_array,training_labels_as_array)
-shuffle_in_unison(test_set_as_array,test_labels_as_array)
-shuffle_in_unison(validation_set_as_array,validation_labels_as_array)
+              metrics=['accuracy']
+)
 
 
-model.fit(training_set_as_array,training_labels_as_array,epochs=epochs,batch_size=32,validation_data=(validation_set_as_array,validation_labels_as_array))
-model.save_weights('my_model_weights.h5')
+
+history = model.fit(training_set_as_array,
+                    training_labels_as_array,
+                    shuffle=True,
+                    epochs=EPOCHS,
+                    batch_size=BATCH_SIZE,
+                    validation_data=(validation_set_as_array,validation_labels_as_array)
+)
+model.save_weights(save_dir+model_name)
 
 score = model.evaluate(test_set_as_array, test_labels_as_array)
-print(score)
 print(model.metrics_names)
+print(score)
+
+print(history.history.keys())
+#  "Accuracy"
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
+# "Loss"
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
