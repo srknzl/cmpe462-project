@@ -1,14 +1,16 @@
 from keras.layers import Dense, Dropout, Activation, Conv2D, MaxPooling2D, Flatten, BatchNormalization
 from keras.models import Sequential
-from keras.utils import to_categorical
+from keras.utils import to_categorical, plot_model
 from keras.optimizers import SGD
-
 import cv2
 import subprocess 
 import os 
 import numpy as np
 import matplotlib.pyplot as plt
+import imgaug as ia
+from imgaug import augmenters as iaa
 
+ia.seed(4)
 
 BATCH_SIZE = 32
 EPOCHS = 5
@@ -33,8 +35,7 @@ animal_folders_list = [
     'sheep',
     'skunk', 
     'tiger',
-    'zebra'
-]
+    'zebra']
 classname_to_class_number = {
     'bear' : 0,
     'cougar' : 1,
@@ -90,7 +91,7 @@ for animal_folder_name in animal_folders_list: # find the file names in the fold
         if files[x]=='':
             del files[x]
     for file in files: # read and store in animal_images
-        animal_images[animal_folder_name].append(cv2.imread("animal_database/"+ animal_folder_name + "/original/" + file)/255.)
+        animal_images[animal_folder_name].append(cv2.imread("animal_database/"+ animal_folder_name + "/original/" + file)[:, :, ::-1])
 
 print("------------DATASET SUMMARY-------------")
 for animal in animal_images: # print dataset summary
@@ -100,6 +101,29 @@ for animal in animal_images: # preprocessing: resize images as (300,300,3)
     for x in range(len(animal_images[animal])):
         animal_images[animal][x] = cv2.resize(animal_images[animal][x],(300,300))
 
+
+for animal in animal_images: 
+    gaus = iaa.AdditiveGaussianNoise(scale=(10, 60))
+    crop = iaa.Crop(percent=(0, 0.2))
+    rotate = iaa.Affine(rotate=(-25, 25))
+
+    rot_images_aug = np.array(rotate.augment_images(animal_images[animal]))
+    animal_images[animal] = np.concatenate((animal_images[animal], rot_images_aug))
+
+    gaus_images_aug = np.array(gaus.augment_images(animal_images[animal]))
+    animal_images[animal] = np.concatenate((animal_images[animal], gaus_images_aug))
+
+    crop_images_aug = np.array(crop.augment_images(animal_images[animal]))
+    animal_images[animal] = np.concatenate((animal_images[animal], crop_images_aug))
+
+
+for animal in animal_images: # changing images to 0 1 float format  
+    for x in range(len(animal_images[animal])):
+        animal_images[animal][x] = animal_images[animal][x]/255.
+
+print("------------DATASET SUMMARY AFTER AUGMENTATION -------------")
+for animal in animal_images: # print dataset summary
+    print(animal+" : "+str(len(animal_images[animal])))
 
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'cmpe462_kth_animals.h5'
@@ -185,6 +209,7 @@ model.compile(optimizer=sgd,
               loss='categorical_crossentropy',
               metrics=['accuracy']
 )
+plot_model(model, to_file='model.png',show_shapes=True)
 
 
 
@@ -195,7 +220,7 @@ history = model.fit(training_set_as_array,
                     batch_size=BATCH_SIZE,
                     validation_data=(validation_set_as_array,validation_labels_as_array)
 )
-model.save_weights(save_dir+model_name)
+model.save_weights(save_dir+ "/" +model_name)
 
 score = model.evaluate(test_set_as_array, test_labels_as_array)
 print(model.metrics_names)
